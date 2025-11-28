@@ -1,0 +1,42 @@
+[Unit]
+Description=Prometheus Server
+Documentation=https://prometheus.io/docs/
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=prometheus
+Group=prometheus
+
+# ←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←
+# 重点：必须写成单行！并且最后一定要加上
+# --enable-feature=remote-write-receiver
+ExecStart=/usr/local/prometheus/prometheus \
+  --config.file=/usr/local/prometheus/prometheus.yml \
+  --storage.tsdb.path=/data/prometheus \
+  --storage.tsdb.retention.time=30d \
+  --storage.tsdb.retention.size=5GB \
+  --web.enable-lifecycle \
+  --web.enable-admin-api \
+  --storage.tsdb.no-lockfile \
+  --enable-feature=remote-write-receiver \
+  --log.level=info
+
+Restart=on-failure
+RestartSec=10
+StartLimitIntervalSec=5min
+StartLimitBurst=10
+
+# 资源与安全限制（强烈建议保留）
+MemoryLimit=3G
+LimitNOFILE=65536
+LimitNPROC=65536
+ProtectSystem=strict
+ProtectHome=yes
+NoNewPrivileges=yes
+PrivateTmp=yes
+ReadWritePaths=/data/prometheus
+
+[Install]
+WantedBy=multi-user.target

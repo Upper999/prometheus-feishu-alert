@@ -1,0 +1,45 @@
+# /usr/local/prometheus/rules/node_rules.yml   ← 直接完整替换成下面内容
+# 在 prom01 (91) 和 prom02 (92) 两台都执行
+
+groups:
+  - name: node-alerts
+    rules:
+    # 1. 节点宕机（只监控 93、94 两台业务节点）
+    - alert: NodeDown
+      expr: up{job="node_exporter", instance=~"192\\.168\\.1\\.(93|94)"} == 0
+      for: 2m
+      labels:
+        severity: critical
+      annotations:
+        summary: "业务节点 {{ $labels.instance }} 已宕机"
+        description: "{{ $labels.instance }} 已离线超过 2 分钟，请立即处理！"
+
+    # 2. CPU 使用率过高（>85% 持续 10 分钟）
+    - alert: CPU使用率过高
+      expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{job="node_exporter", mode="idle"}[5m])) * 100) > 85 and on(instance) up{job="node_exporter", instance=~"192\\.168\\.1\\.(93|94)"} == 1
+      for: 10m
+      labels:
+        severity: warning
+      annotations:
+        summary: "节点 {{ $labels.instance }} CPU 使用率过高"
+        description: "过去10分钟平均 CPU 使用率 {{ $value | printf \"%.1f\" }}%（已超过85%）"
+
+    # 3. 内存使用率过高（不含缓存，>90% 持续 10 分钟）
+    - alert: 内存使用率过高
+      expr: (node_memory_MemTotal_bytes{job="node_exporter"} - node_memory_MemFree_bytes{job="node_exporter"} - node_memory_Buffers_bytes{job="node_exporter"} - node_memory_Cached_bytes{job="node_exporter"}) / node_memory_MemTotal_bytes{job="node_exporter"} * 100 > 90 and on(instance) up{job="node_exporter", instance=~"192\\.168\\.1\\.(93|94)"} == 1
+      for: 10m
+      labels:
+        severity: warning
+      annotations:
+        summary: "节点 {{ $labels.instance }} 内存使用率过高"
+        description: "已用内存（不含缓存）占比 {{ $value | printf \"%.1f\" }}%，已超过90% 持续10分钟"
+
+    # 4. 根分区即将写满（剩余 <15% 持续 10 分钟）
+    - alert: 根分区即将写满
+      expr: node_filesystem_avail_bytes{job="node_exporter", mountpoint="/", fstype=~"ext4|xfs"} / node_filesystem_size_bytes{job="node_exporter", mountpoint="/", fstype=~"ext4|xfs"} * 100 < 15 and on(instance) up{job="node_exporter", instance=~"192\\.168\\.1\\.(93|94)"} == 1
+      for: 10m
+      labels:
+        severity: critical
+      annotations:
+        summary: "节点 {{ $labels.instance }} 根分区即将写满"
+        description: "根分区剩余空间仅 {{ $value | printf \"%.1f\" }}%，已低于15% 持续10分钟，急需清理！"

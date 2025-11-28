@@ -1,0 +1,16 @@
+[Unit]
+Description=Alertmanager High Availability Cluster
+After=network.target
+
+[Service]
+Type=simple
+User=prometheus
+Group=prometheus
+WorkingDirectory=/data/alertmanager
+ExecStart=/usr/local/bin/alertmanager   --config.file=/data/alertmanager/alertmanager.yml   --web.listen-address=":9093"   --cluster.listen-address="0.0.0.0:9099"   --cluster.peer=192.168.1.92:9099
+Restart=always
+RestartSec=3
+MemoryMax=500M
+
+[Install]
+WantedBy=multi-user.target

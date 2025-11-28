@@ -1,0 +1,27 @@
+global:
+  resolve_timeout: 5m
+
+route:
+  receiver: feishu
+  group_by: ['alertname',  'service']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 5m
+
+receivers:
+- name: feishu
+  webhook_configs:
+  - url: 'http://192.168.1.91:4000/alert'  #改成你中转站的 IP:4000
+    send_resolved: true
+    # 重点：加了这段才能成功发送！！！
+    http_config:
+      tls_config:
+        insecure_skip_verify: true     # 跳过 HTTPS 证书校验（内网自建常用）
+      follow_redirects: true
+      enable_http2: false                # Flask 不支持 HTTP/2，关掉避免诡异错误
+
+inhibit_rules:
+- source_matchers: [severity = "critical"]
+  target_matchers: [severity = "warning"]
+  equal: ['alertname', 'service']
+

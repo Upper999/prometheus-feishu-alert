@@ -1,0 +1,52 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: prod-cluster
+    replica: prom02
+    instance: prom-92
+
+rule_files:
+  - /usr/local/prometheus/rules/*.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - 192.168.1.91:9093
+            - 192.168.1.92:9093
+      timeout: 10s
+      api_version: v2
+
+scrape_configs:
+  - job_name: prometheus
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    static_configs:
+      - targets: ['localhost:9090']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: prom-92
+
+  - job_name: node_exporter
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    static_configs:
+      - targets:
+          - 192.168.1.91:9100
+          - 192.168.1.92:9100
+          - 192.168.1.93:9100
+          - 192.168.1.94:9100
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        regex: ([^:]+):.*
+        replacement: $1
+
+remote_write:
+  - url: http://192.168.1.91:9090/api/v1/write
+    queue_config:
+      capacity: 10000
+      max_samples_per_send: 5000
+      max_shards: 10
